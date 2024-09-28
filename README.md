@@ -20,8 +20,8 @@ An AI-driven investing application that leverages real-time market data and mach
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/birdhouses/ai-investing-app.git
-cd ai-investing-app
+git clone https://github.com/birdhouses/ai-trader.git
+cd ai-trader
 ```
 
 ### Install Dependencies
