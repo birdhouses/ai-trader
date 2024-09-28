@@ -1,4 +1,6 @@
 # AI Investing Application
+![image](https://github.com/user-attachments/assets/4f10bcfe-78e4-4557-a4f3-c81d1531ba2a)
+
 ![image](https://github.com/user-attachments/assets/7fa374f4-602e-4832-a797-f6b79589dad7)
 
 An AI-driven investing application that leverages real-time market data and machine learning models to simulate investments, predict future market trends, and visualize potential profits using leverage. This application integrates with the Capital.com API to fetch real-time and historical market data and uses AutoGluon for time series prediction.
