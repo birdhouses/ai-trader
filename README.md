@@ -114,10 +114,6 @@ pip install -r requirements.txt
 - **Leverage and Risk**: Using leverage amplifies both gains and losses. Be cautious when simulating investments with high leverage and understand the associated risks.
 - **Data Privacy**: Be mindful of any personal or sensitive data. Do not share logs or outputs that may contain sensitive information.
 
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
 ## Acknowledgments
 
 - [Capital.com API](https://capital.com/api) for providing access to market data.
