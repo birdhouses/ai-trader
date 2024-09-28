@@ -1,8 +1,5 @@
 # AI Investing Application
 
-![Market Data Tab](assets/market_data_tab.png)
-*Market Data Tab showcasing real-time data retrieval and visualization.*
-
 ![AI Assistant Tab](assets/ai_assistant_tab.png)
 *AI Assistant Tab allowing user interaction with an AI for market insights.*
 
