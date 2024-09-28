@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from modules.capital_com_api import CapitalComAPI
 from modules.predictors import AutoGluonTrainer
+from modules.assistant import Assistant
 
 from dotenv import load_dotenv
 import os
@@ -15,6 +16,7 @@ load_dotenv()
 API_KEY = os.getenv('CAPITAL_COM_API_KEY')
 IDENTIFIER = os.getenv('CAPITAL_COM_IDENTIFIER')
 PASSWORD = os.getenv('CAPITAL_COM_API_PASSWORD')
+OPENAI_ASSISTANT_ID = os.getenv('OPENAI_ASSISTANT_ID')
 
 # Initialize the CapitalComAPI client
 api_client = CapitalComAPI(
@@ -73,6 +75,20 @@ with tab1:
 
                 # Plot the data
                 st.line_chart(data.set_index('timestamp')['target'])
+
+    st.subheader("Ask a Question")
+    question = st.text_input("Enter your question about the market data")
+    if st.button("Get Answer"):
+        if question:
+            with st.spinner("Processing your question..."):
+                # Initialize the Assistant with the existing api_client
+                assistant = Assistant(capital_api_client=api_client)
+                assistant_id = OPENAI_ASSISTANT_ID
+                answer = assistant.chat_with_assistant(assistant_id, question)
+                st.write("Assistant's Response:")
+                st.write(answer)
+        else:
+            st.error("Please enter a question.")
 
 # -------- Model Training & Prediction Tab ----------
 with tab2:

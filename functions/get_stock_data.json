@@ -1,0 +1,33 @@
+{
+    "name": "get_stock_data",
+    "description": "Get the stock prices for a given period",
+    "strict": false,
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "epic": {
+          "type": "string",
+          "description": "Instrument epic"
+        },
+        "resolution": {
+          "type": "string",
+          "description": "Defines the resolution of requested prices. Possible values are MINUTE, MINUTE_5, MINUTE_15, MINUTE_30, HOUR, HOUR_4, DAY, WEEK"
+        },
+        "max": {
+          "type": "integer",
+          "description": "The maximum number of the values in answer. Default = 10, max = 1000"
+        },
+        "from": {
+          "type": "string",
+          "description": "Start date. Date format: YYYY-MM-DDTHH:MM:SS (e.g. 2022-04-01T01:01:00). Filtration by date based on snapshotTimeUTC parameter"
+        },
+        "to": {
+          "type": "string",
+          "description": "End date. Date format: YYYY-MM-DDTHH:MM:SS (e.g. 2022-04-01T01:01:00). Filtration by date based on snapshotTimeUTC parameter"
+        }
+      },
+      "required": [
+        "epic"
+      ]
+    }
+  }

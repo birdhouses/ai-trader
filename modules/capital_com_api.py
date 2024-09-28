@@ -3,6 +3,8 @@ import hashlib
 import hmac
 import base64
 import time
+import portalocker
+import json
 
 class CapitalComAPI:
     def __init__(self, api_key, identifier, password, base_url='https://api-capital.backend-capital.com/', demo=False):
@@ -11,12 +13,46 @@ class CapitalComAPI:
         self.password = password
         self.session_token = None
         self.security_token = None
+        self.rate_limit_file = 'rate_limit.json'
         self.base_url = base_url if not demo else 'https://demo-api-capital.backend-capital.com/'
         self.headers = {
             'X-CAP-API-KEY': self.api_key,
             'Content-Type': 'application/json'
         }
+        self.last_request_time = None  # Initialize the last request time
+        self.rate_limit = 1.0  # Rate limit in seconds (1 request per second)
         self.start_session()
+
+    def _rate_limit(self):
+        """Ensure that we don't exceed the rate limit of 1 request per second."""
+        current_time = time.time()
+        with portalocker.Lock(self.rate_limit_file, 'a+', timeout=5) as lock_file:
+            lock_file.seek(0)
+            content = lock_file.read()
+            if content:
+                data = json.loads(content)
+                last_request_time = data.get('last_request_time', 0)
+            else:
+                last_request_time = 0
+
+            elapsed = current_time - last_request_time
+            if elapsed < self.rate_limit:
+                time_to_wait = self.rate_limit - elapsed
+                time.sleep(time_to_wait)
+                current_time = time.time()  # Update current time after sleep
+
+            # Update the last request time in the file
+            lock_file.seek(0)
+            lock_file.truncate()
+            lock_file.write(json.dumps({'last_request_time': current_time}))
+            lock_file.flush()
+
+
+    def _make_request(self, method, url, **kwargs):
+        """Helper method to make HTTP requests with rate limiting."""
+        self._rate_limit()
+        response = requests.request(method, url, headers=self.headers, **kwargs)
+        return response
 
     def start_session(self):
         """Start a new session and obtain session tokens"""
@@ -26,7 +62,7 @@ class CapitalComAPI:
             "password": self.password,
             "encryptedPassword": False
         }
-        response = requests.post(url, headers=self.headers, json=payload)
+        response = self._make_request('POST', url, json=payload)
         print(response)
         if response.status_code == 200:
             self.session_token = response.headers['CST']
@@ -41,25 +77,25 @@ class CapitalComAPI:
     def ping(self):
         """Ping the service to keep the session alive"""
         url = self.base_url + 'api/v1/ping'
-        response = requests.get(url, headers=self.headers)
+        response = self._make_request('GET', url)
         return response.json()
 
     def end_session(self):
         """End the current session"""
         url = self.base_url + 'api/v1/session'
-        response = requests.delete(url, headers=self.headers)
+        response = self._make_request('DELETE', url)
         return response.json()
 
     def get_accounts(self):
         """Retrieve all accounts associated with the current session"""
         url = self.base_url + 'api/v1/accounts'
-        response = requests.get(url, headers=self.headers)
+        response = self._make_request('GET', url)
         return response.json()
 
     def get_account_preferences(self):
         """Retrieve account preferences like leverage settings and trading mode"""
         url = self.base_url + 'api/v1/accounts/preferences'
-        response = requests.get(url, headers=self.headers)
+        response = self._make_request('GET', url)
         return response.json()
 
     def update_account_preferences(self, leverages=None, hedging_mode=None):
@@ -70,19 +106,19 @@ class CapitalComAPI:
             payload['leverages'] = leverages
         if hedging_mode is not None:
             payload['hedgingMode'] = hedging_mode
-        response = requests.put(url, headers=self.headers, json=payload)
+        response = self._make_request('PUT', url, json=payload)
         return response.json()
 
     def get_market_categories(self):
         """Retrieve all top-level market categories"""
         url = self.base_url + 'api/v1/marketnavigation'
-        response = requests.get(url, headers=self.headers)
+        response = self._make_request('GET', url)
         return response.json()
 
     def get_category_markets(self, node_id, limit=500):
         """Retrieve all sub-markets for a given market category"""
         url = f"{self.base_url}api/v1/marketnavigation/{node_id}?limit={limit}"
-        response = requests.get(url, headers=self.headers)
+        response = self._make_request('GET', url)
         return response.json()
 
     def search_markets(self, search_term=None, epics=None):
@@ -93,13 +129,13 @@ class CapitalComAPI:
             params['searchTerm'] = search_term
         if epics:
             params['epics'] = ','.join(epics)
-        response = requests.get(url, headers=self.headers, params=params)
+        response = self._make_request('GET', url, params=params)
         return response.json()
 
     def get_market_details(self, epic):
         """Retrieve detailed information for a specific market"""
         url = f"{self.base_url}api/v1/markets/{epic}"
-        response = requests.get(url, headers=self.headers)
+        response = self._make_request('GET', url)
         return response.json()
 
     def get_historical_prices(self, epic, resolution='MINUTE', max=10, from_date=None, to_date=None):
@@ -113,7 +149,7 @@ class CapitalComAPI:
             params['from'] = from_date
         if to_date:
             params['to'] = to_date
-        response = requests.get(url, headers=self.headers, params=params)
+        response = self._make_request('GET', url, params=params)
         return response.json()
 
     def get_client_sentiment(self, market_ids):
@@ -122,7 +158,7 @@ class CapitalComAPI:
         params = {
             'marketIds': ','.join(market_ids)
         }
-        response = requests.get(url, headers=self.headers, params=params)
+        response = self._make_request('GET', url, params=params)
         return response.json()
 
     def create_position(self, epic, direction, size, guaranteed_stop=False, stop_level=None, profit_level=None):
@@ -138,13 +174,13 @@ class CapitalComAPI:
             payload['stopLevel'] = stop_level
         if profit_level:
             payload['profitLevel'] = profit_level
-        response = requests.post(url, headers=self.headers, json=payload)
+        response = self._make_request('POST', url, json=payload)
         return response.json()
 
     def close_position(self, deal_id):
         """Close an open trading position"""
         url = f"{self.base_url}api/v1/positions/{deal_id}"
-        response = requests.delete(url, headers=self.headers)
+        response = self._make_request('DELETE', url)
         return response.json()
 
     def create_working_order(self, epic, direction, size, level, order_type='LIMIT', guaranteed_stop=False, stop_level=None, profit_level=None, good_till_date=None):
@@ -164,7 +200,7 @@ class CapitalComAPI:
             payload['profitLevel'] = profit_level
         if good_till_date:
             payload['goodTillDate'] = good_till_date
-        response = requests.post(url, headers=self.headers, json=payload)
+        response = self._make_request('POST', url, json=payload)
         return response.json()
 
     def update_working_order(self, deal_id, level=None, good_till_date=None, guaranteed_stop=None, stop_level=None, profit_level=None):
@@ -181,37 +217,37 @@ class CapitalComAPI:
             payload['stopLevel'] = stop_level
         if profit_level:
             payload['profitLevel'] = profit_level
-        response = requests.put(url, headers=self.headers, json=payload)
+        response = self._make_request('PUT', url, json=payload)
         return response.json()
 
     def delete_working_order(self, deal_id):
         """Delete an existing working order"""
         url = f"{self.base_url}api/v1/workingorders/{deal_id}"
-        response = requests.delete(url, headers=self.headers)
+        response = self._make_request('DELETE', url)
         return response.json()
 
     def get_open_positions(self):
         """Retrieve all open positions for the active account"""
         url = self.base_url + 'api/v1/positions'
-        response = requests.get(url, headers=self.headers)
+        response = self._make_request('GET', url)
         return response.json()
 
     def get_open_orders(self):
         """Retrieve all open working orders for the active account"""
         url = self.base_url + 'api/v1/workingorders'
-        response = requests.get(url, headers=self.headers)
+        response = self._make_request('GET', url)
         return response.json()
 
     def get_position(self, deal_id):
         """Retrieve details of a specific open position"""
         url = f"{self.base_url}api/v1/positions/{deal_id}"
-        response = requests.get(url, headers=self.headers)
+        response = self._make_request('GET', url)
         return response.json()
 
     def get_order(self, deal_id):
         """Retrieve details of a specific open working order"""
         url = f"{self.base_url}api/v1/workingorders/{deal_id}"
-        response = requests.get(url, headers=self.headers)
+        response = self._make_request('GET', url)
         return response.json()
 
     def get_account_activity(self, from_date=None, to_date=None, last_period=600, detailed=False, deal_id=None, filter=None):
@@ -229,7 +265,7 @@ class CapitalComAPI:
             params['dealId'] = deal_id
         if filter:
             params['filter'] = filter
-        response = requests.get(url, headers=self.headers, params=params)
+        response = self._make_request('GET', url, params=params)
         return response.json()
 
     def get_transaction_history(self, from_date=None, to_date=None, last_period=600, transaction_type=None):
@@ -244,7 +280,7 @@ class CapitalComAPI:
             params['to'] = to_date
         if transaction_type:
             params['type'] = transaction_type
-        response = requests.get(url, headers=self.headers, params=params)
+        response = self._make_request('GET', url, params=params)
         return response.json()
 
     def adjust_demo_balance(self, amount):
@@ -253,13 +289,13 @@ class CapitalComAPI:
         payload = {
             'amount': amount
         }
-        response = requests.post(url, headers=self.headers, json=payload)
+        response = self._make_request('POST', url, json=payload)
         return response.json()
 
     def get_watchlists(self):
         """Retrieve all watchlists belonging to the current user"""
         url = self.base_url + 'api/v1/watchlists'
-        response = requests.get(url, headers=self.headers)
+        response = self._make_request('GET', url)
         return response.json()
 
     def create_watchlist(self, name, epics=None):
@@ -270,13 +306,13 @@ class CapitalComAPI:
         }
         if epics:
             payload['epics'] = epics
-        response = requests.post(url, headers=self.headers, json=payload)
+        response = self._make_request('POST', url, json=payload)
         return response.json()
 
     def delete_watchlist(self, watchlist_id):
         """Delete an existing watchlist"""
         url = f"{self.base_url}api/v1/watchlists/{watchlist_id}"
-        response = requests.delete(url, headers=self.headers)
+        response = self._make_request('DELETE', url)
         return response.json()
 
     def add_market_to_watchlist(self, watchlist_id, epic):
@@ -285,11 +321,11 @@ class CapitalComAPI:
         payload = {
             "epic": epic
         }
-        response = requests.put(url, headers=self.headers, json=payload)
+        response = self._make_request('PUT', url, json=payload)
         return response.json()
 
     def remove_market_from_watchlist(self, watchlist_id, epic):
         """Remove a market from a watchlist"""
         url = f"{self.base_url}api/v1/watchlists/{watchlist_id}/{epic}"
-        response = requests.delete(url, headers=self.headers)
+        response = self._make_request('DELETE', url)
         return response.json()

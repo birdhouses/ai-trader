@@ -1,0 +1,10 @@
+{
+    "name": "get_current_datetime",
+    "description": "Retrieve the current date and time.",
+    "strict": false,
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    }
+  }
