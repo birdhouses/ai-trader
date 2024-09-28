@@ -1,0 +1,7 @@
+autogluon
+matplotlib
+numpy
+pandas
+python-dotenv
+Requests
+streamlit
