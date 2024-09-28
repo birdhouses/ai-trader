@@ -1,4 +1,5 @@
 # AI Investing Application
+![image](https://github.com/user-attachments/assets/7fa374f4-602e-4832-a797-f6b79589dad7)
 
 An AI-driven investing application that leverages real-time market data and machine learning models to simulate investments, predict future market trends, and visualize potential profits using leverage. This application integrates with the Capital.com API to fetch real-time and historical market data and uses AutoGluon for time series prediction.
 
@@ -112,10 +113,6 @@ pip install -r requirements.txt
 - **Demo vs. Live Trading**: The application is set to use live trading data (`demo=False`). If you wish to use demo data, set `demo=True` when initializing the `CapitalComAPI` client.
 - **Leverage and Risk**: Using leverage amplifies both gains and losses. Be cautious when simulating investments with high leverage and understand the associated risks.
 - **Data Privacy**: Be mindful of any personal or sensitive data. Do not share logs or outputs that may contain sensitive information.
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
